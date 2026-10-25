@@ -53,3 +53,11 @@ Wariant pip respektuje przypięte zależności bez pełnego zamrożenia przechod
 
 Realna transkrypcja, wydajność MLX i pomiar zużycia 16 GB RAM wymagają fazy 2.
 Nie pobieraj modeli „na zapas” w celu uruchomienia tej wersji.
+
+## Faza 2 (0.2.0) — opcjonalnie
+
+Dodano backend i GUI lokalnej transkrypcji. Procedura oraz rzeczywiste wyniki testów:
+[phase2.md](phase2.md). Instalacja zależności: `uv sync --frozen --extra speech`.
+Nie pobiera to modeli; lokalne wagi wybiera się oddzielnie. Modele i macOS/M5
+pozostają niezweryfikowane w obecnym środowisku linuksowym. Kroki mowy PL/EN/JA
+należy wykonać na Macu, nie zastępować ich testami z providerem fixture.

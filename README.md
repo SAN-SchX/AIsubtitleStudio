@@ -1,26 +1,28 @@
 # AI Subtitle Studio
 
-Lokalna aplikacja desktopowa do pracy z wideo i napisami. **Zaimplementowane:
-fazy 0 i 1.** Interfejs jest po polsku. Docelowo: macOS, Apple Silicon,
-16 GB RAM, Python 3.12. Bieżące testy wykonano na Linuksie x86_64.
+Lokalna aplikacja desktopowa do pracy z wideo i napisami. Docelowo: macOS,
+Apple Silicon, 16 GB RAM, Python 3.12. Interfejs jest po polsku.
 
-Działa już:
+**Stan 0.2.0:** fazy 0–1 zweryfikowano na Linuksie. Dodano implementację fazy 2
+(adapter MLX, pipeline i GUI); **rzeczywista transkrypcja na Macu pozostaje
+NOT VERIFIED**. Testy z kontrolowanym providerem nie są dowodem jakości Whispera.
 
-- wybór i przeciąganie lokalnego MP4/MKV/MOV/AVI oraz SRT/ASS;
-- FFprobe: czas, racjonalny FPS, wszystkie ścieżki audio i napisów;
-- jawny wybór audio i języka źródłowego: auto / polski / angielski / japoński;
-- zapis wybranej ścieżki jako PCM WAV, 16 kHz mono, z zachowaniem jej opóźnienia;
-- import SRT/ASS, podgląd pierwszych 500 kwestii i eksport całej kopii UTF-8;
-- ochrona istniejących plików, w tym linków i konfliktu powstałego w trakcie zapisu;
-- praca plikowa poza wątkiem GUI, anulowanie FFprobe/FFmpeg i diagnostyka `doctor`.
+Dostępne funkcje:
 
-**Jeszcze nie działa:** transkrypcja MLX, synchronizacja, wykrywanie skoków opóźnienia,
-tłumaczenie Ollamą, edycja i podgląd wideo. Przyciski tych trybów są wyłączone
-z etykietą „Planowane”. Nie ma przykładowej transkrypcji udającej wynik modelu.
+- import lokalnego MP4/MKV/MOV/AVI oraz SRT/ASS przez dialog i drag/drop;
+- czas, FPS, ścieżki audio i napisów przez FFprobe;
+- jawny wybór audio, języka PL/EN/JA lub auto; ekstrakcja WAV 16 kHz mono;
+- podgląd pierwszych 500 kwestii i zapis całej kopii SRT/ASS UTF-8;
+- odmowa nadpisywania, także linków i plików utworzonych w trakcie zapisu;
+- na Macu z zainstalowanym backendem i lokalnym modelem: przycisk transkrypcji,
+  przetwarzanie oknami, postęp rzeczywistych fragmentów i anulowanie;
+- diagnostyka lokalnych zależności bez pobierania modeli.
 
-## Instalacja i uruchomienie
+Synchronizacja, tłumaczenie, edytor i podgląd wideo pozostają „Planowane”.
 
-W katalogu repozytorium, z Pythonem 3.12, `uv` i FFmpeg/FFprobe w PATH:
+## Instalacja i start
+
+Python 3.12, `uv` oraz FFmpeg/FFprobe w PATH. W istniejącym katalogu repozytorium:
 
 ```bash
 uv sync --frozen
@@ -28,29 +30,38 @@ uv run --frozen python scripts/doctor.py
 uv run --frozen python -m ai_subtitle_studio
 ```
 
-Ollama i modele **nie są wymagane w fazie 1**. `doctor` sprawdza wyłącznie
-lokalne `127.0.0.1:11434/api/tags`; brak usługi/modeli jest ostrzeżeniem,
-nie błędem obecnej aplikacji. Żadne modele nie są automatycznie pobierane.
-`doctor --no-ollama` pomija nawet to lokalne połączenie.
+Na Macu arm64 dla fazy 2 doinstaluj opcjonalne zależności:
 
-Instrukcja macOS i alternatywa `venv`: [docs/install_macos.md](docs/install_macos.md).
+```bash
+uv sync --frozen --extra speech
+```
 
-## Użycie
+Ta komenda nie pobiera modeli. W GUI wybierz katalog modelu zawierający
+`config.json` i `weights.safetensors` lub `weights.npz`. Niekompletny model,
+brak zależności albo niewspierany system blokują przycisk transkrypcji.
+Jawne pobranie modelu i polecenie CLI: [docs/phase2.md](docs/phase2.md).
+Instalacja na Macu: [docs/install_macos.md](docs/install_macos.md).
 
-1. Otwórz wideo albo upuść je na okno. Przeczytaj metadane.
-2. Wybierz konkretną ścieżkę audio. Aplikacja nie zgaduje właściwego dubbingu.
-3. Opcjonalnie wybierz język. Ten wybór trafia do konfiguracji zadania; nie uruchamia ASR.
-4. „Zapisz wybraną ścieżkę jako WAV…” wykonuje rzeczywistą ekstrakcję do nowego pliku.
-5. Otwórz SRT/ASS, obejrzyj podgląd i użyj „Zapisz kopię napisów…”.
-   Zachowywany jest format źródłowy, tekst i czasy. Konwersja ASS↔SRT jest blokowana.
+Ollama **nie jest potrzebna do transkrypcji**. `doctor` może sprawdzić wyłącznie
+lokalne `127.0.0.1:11434/api/tags`; `--no-ollama` pomija nawet to połączenie.
+`doctor --check-speech --model-dir /ścieżka/do/modelu` wymaga MLX i lokalnych wag.
 
-UTF-8 (także BOM) i UTF-16 z BOM są rozpoznawane. Dla starych polskich plików
-wybierz CP1250 **przed** otwarciem. Błędne kodowanie nie jest zgadywane.
-Efekty ASS są zachowane w kopii, lecz ich renderowania/retimingu nie zweryfikowano;
-aplikacja pokazuje ostrzeżenie. Eksport nigdy nie zastępuje istniejącego pliku,
-nawet po potwierdzeniu w systemowym dialogu — trzeba podać nową nazwę.
+## Pliki i prywatność
 
-## Testy
+Oryginały nie są otwierane do zapisu. Kopiowanie napisów zachowuje format źródłowy;
+konwersja ASS↔SRT jest blokowana. SRT zachowuje oryginalny tekst, ASS również
+sekcje nieinterpretowane przez parser. Efekty ASS nie mają gwarancji renderowania
+ani retimingu; aplikacja ostrzega o karaoke/animacji/rysunkach.
+
+UTF-8/BOM i UTF-16 z BOM są rozpoznawane. CP1250 wybierz przed otwarciem starego
+polskiego pliku. Błędne kodowanie nie jest zgadywane. Napisy: do 16 MiB.
+
+Aplikacja nie wysyła filmów, audio ani transkrypcji na serwery. Nie ma telemetrii
+aplikacji. Logowanie jest domyślnie wyłączone (`--log` włącza metadane bez dialogów).
+Instalacja pakietów i **jawne** pobranie modeli wymagają internetu. ASR dostaje
+wyłącznie lokalny katalog, z włączonym trybem offline Hugging Face.
+
+## Testy i ograniczenia
 
 ```bash
 uv run --frozen pytest -q
@@ -65,19 +76,15 @@ QT_QPA_PLATFORM=offscreen uv run --frozen pytest -q
 QT_QPA_PLATFORM=offscreen uv run --frozen python -m ai_subtitle_studio --smoke-test
 ```
 
-Testy działają bez modeli i sieci. Integracje wymagają FFmpeg/FFprobe;
-przy ich braku są jawnie pomijane. W udokumentowanym uruchomieniu nie było pominięć.
-Korpus jest syntetyczny (własne teksty i generowane tony), nie mierzy jakości ASR.
-Wyniki i ograniczenia: [docs/validation.md](docs/validation.md).
+Testy podstawowe działają bez modeli i sieci. Integracje mediów wymagają lokalnego
+FFmpeg/FFprobe. Trzy testy prawdziwego MLX wymagają Maca i własnego korpusu mowy —
+przy braku tych warunków są jawnie pomijane. Korpus w repo zawiera własne teksty,
+kolor i tony, nie rzeczywiste nagrania PL/EN/JA.
 
-## Prywatność i status projektu
+Filtr amplitudy wycina ciszę, lecz **nie jest Silero VAD** i nie rozpoznaje muzyki.
+Dedupikacja na granicach jest konserwatywna i wymaga sprawdzenia na realnej mowie.
+Nie zweryfikowano zużycia pamięci ani jakości na MacBooku Air M5.
 
-Aplikacja nie wysyła wideo, napisów ani dialogów do internetu. Nie ma telemetrii.
-Logi są domyślnie wyłączone; opcja `--log` włącza wyłącznie komunikaty techniczne
-bez treści dialogowych. Instalacja pakietów wymaga internetu; późniejsze operacje
-fazy 1 korzystają z lokalnych plików i programów. Modele są planowane na kolejne fazy.
-
-Specyfikacja: [ROADMAP.md](ROADMAP.md), [AGENTS.md](AGENTS.md), [TASKS.md](TASKS.md),
-[PROMPTS_BY_PHASE.md](PROMPTS_BY_PHASE.md). Architektura i decyzje:
-[docs/architecture.md](docs/architecture.md), [docs/decisions.md](docs/decisions.md).
-Historia zmian: [CHANGELOG.md](CHANGELOG.md).
+[Wyniki testów faz 0–1](docs/validation.md) · [Faza 2](docs/phase2.md) ·
+[Zmienione pliki](docs/files.md) · [TASKS.md](TASKS.md) · [CHANGELOG.md](CHANGELOG.md) ·
+[ROADMAP.md](ROADMAP.md) · [Architektura](docs/architecture.md) · [ADR](docs/decisions.md)

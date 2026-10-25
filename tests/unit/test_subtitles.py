@@ -147,3 +147,13 @@ def test_unsupported_ass_layout_or_invalid_event_fails(fixtures_dir, tmp_path, r
     source.write_text(text)
     with pytest.raises(SubtitleError):
         load_subtitles(source)
+
+
+@pytest.mark.parametrize("text", ["bad\x00text", "first\n\nsecond"])
+def test_generated_srt_rejects_invalid_text(tmp_path, text):
+    from ai_subtitle_studio.domain.models import SubtitleCue
+    from ai_subtitle_studio.subtitles.io import save_cues
+
+    with pytest.raises(SubtitleError):
+        save_cues([SubtitleCue(id="x", text=text, start_ms=0, end_ms=100)], tmp_path / "out.srt")
+    assert not list(tmp_path.iterdir())

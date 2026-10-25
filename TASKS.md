@@ -35,11 +35,22 @@ Nie oznacza to zakończenia całego MVP ani weryfikacji modeli.
 ## Faza 2 — realna transkrypcja
 - [ ] MLX whisper backend działa na realnej lokalnej próbce audio.
 - [ ] Obsługa EN, PL, JA wraz z nadpisaniem auto-lang.
-- [ ] Chunking i segment time offset nie powodują skoków czasu.
-- [ ] Generowanie `.srt` z poprawną numeracją i UTF-8.
-- [ ] Gdy model niepobrany, GUI mówi czego potrzeba; brak cichego pobrania.
-- [ ] Log informuje o realnym czasie i modelu — bez udawanych metryk.
-- [ ] Działa cancel i wątek UI nie jest blokowany.
+- [x] Chunking i segment time offset nie powodują skoków czasu.
+- [x] Generowanie `.srt` z poprawną numeracją i UTF-8.
+- [x] Gdy model niepobrany, GUI mówi czego potrzeba; brak cichego pobrania.
+- [x] Log informuje o realnym czasie i modelu — bez udawanych metryk.
+- [x] Działa cancel i wątek UI nie jest blokowany.
+
+
+Weryfikacja implementacji fazy 2: `QT_QPA_PLATFORM=offscreen .venv/bin/python -m pytest -q`.
+Testy: `test_chunks_stitch.py`, `test_speech_models.py`, `test_speech_worker.py`,
+`test_speech_process.py`, `test_transcription.py` i scenariusze GUI. Zaliczone
+pozycje dotyczą deterministycznych fixture, rzeczywistego FFmpeg i testowego
+providera. **Nie stanowią weryfikacji MLX na prawdziwej mowie.** Adapter ma
+implementację EN/PL/JA i auto/manual, ale dwie pierwsze pozycje pozostają otwarte
+do realnego odbioru na Macu. Trzy opt-in testy `test_mlx_native.py` są pominięte
+na Linuksie. Nie pobierano modeli. Dokładny raport: `docs/phase2.md` i
+`docs/validation.md`. Faza 2 nie jest jeszcze odebrana w całości; faza 3 nierozpoczęta.
 
 ## Faza 3 — korekta prosta
 - [ ] Ręczne shift offset.

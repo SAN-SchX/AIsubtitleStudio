@@ -4,6 +4,7 @@ import codecs
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Event
 
 import pysubs2
 from pydantic import ValidationError
@@ -151,21 +152,50 @@ def export_subtitles(document: SubtitleDocument, output: Path) -> Path:
     if document.format == "srt":
         # pysubs2's ASS intermediary strips some SRT HTML/literal braces. Keep
         # validated source text separately, emitting conventional SRT indexes.
-        def timestamp(ms: int) -> str:
-            seconds, milliseconds = divmod(ms, 1000)
-            minutes, seconds = divmod(seconds, 60)
-            hours, minutes = divmod(minutes, 60)
-            return f"{hours:02}:{minutes:02}:{seconds:02},{milliseconds:03}"
-
-        text = "".join(
-            f"{index}\n{timestamp(cue.start_ms)} --> {timestamp(cue.end_ms)}\n{cue.text}\n\n"
-            for index, cue in enumerate(document.cues, 1)
-        )
+        text = _srt_string(list(document.cues))
     else:
         # Phase 1 only exports copies. Preserve even extension sections that the
         # parser cannot model; later retiming needs a separate fidelity contract.
         text = document._source_text
     data = text.encode("utf-8")
     with atomic_output(output, (document.source_path,)) as temporary:
+        temporary.write_bytes(data)
+    return output
+
+
+def _srt_string(cues: list[SubtitleCue]) -> str:
+    def timestamp(ms: int) -> str:
+        seconds, milliseconds = divmod(ms, 1000)
+        minutes, seconds = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        return f"{hours:02}:{minutes:02}:{seconds:02},{milliseconds:03}"
+
+    return "".join(
+        f"{index}\n{timestamp(cue.start_ms)} --> {timestamp(cue.end_ms)}\n{cue.text}\n\n"
+        for index, cue in enumerate(cues, 1)
+    )
+
+
+def save_cues(
+    cues: list[SubtitleCue],
+    output: Path,
+    *,
+    sources: tuple[Path, ...] = (),
+    cancel: Event | None = None,
+) -> Path:
+    if output.suffix.lower() != ".srt" or not cues:
+        raise SubtitleError("Wymagane niepuste napisy i nowy plik SRT.")
+    if len({cue.id for cue in cues}) != len(cues):
+        raise SubtitleError("Identyfikatory kwestii muszą być unikalne.")
+    if any(a.start_ms > b.start_ms for a, b in zip(cues, cues[1:], strict=False)):
+        raise SubtitleError("Kwestie nie są w kolejności chronologicznej.")
+    if any(
+        any(ord(c) < 32 and c not in "\n\t" for c in cue.text) or "\n\n" in cue.text for cue in cues
+    ):
+        raise SubtitleError("Wynik zawiera znaki sterujące lub puste bloki wewnątrz kwestii.")
+    data = _srt_string(cues).encode("utf-8")
+    if len(data) > DEFAULT_SETTINGS.subtitle_limit_bytes:
+        raise SubtitleError("Wynik napisów przekracza limit 16 MiB.")
+    with atomic_output(output, sources, cancel=cancel) as temporary:
         temporary.write_bytes(data)
     return output

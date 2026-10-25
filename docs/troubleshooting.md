@@ -23,3 +23,19 @@
   Karaoke/animacja/rysunki mogą wymagać osobnego renderera i przyszłych testów.
 - **Chmura bez ekranu:** ustaw `QT_QPA_PLATFORM=offscreen` wyłącznie do testów.
   Komunikaty Qt o `propagateSizeHints()` w tym trybie nie oznaczają błędu testu.
+
+## Transkrypcja MLX (faza 2)
+
+- **Przycisk wyłączony:** odczytaj status ASR. Wymagane są macOS arm64,
+  opcjonalne zależności `speech`, lokalny model i wybrana ścieżka audio.
+- **Brak modelu:** wybierz lokalny katalog lub uruchom jawne pobieranie z instrukcji
+  [phase2.md](phase2.md). App nie pobiera wag po naciśnięciu „Transkrybuj”.
+- **Brak pamięci / timeout MLX:** proces jest kończony; wybierz preset szybki,
+  zamknij inne modele i sprawdź lokalne wagi. Nie następuje cicha zamiana modelu.
+- **Brak mowy:** nie powstaje pusty ani przykładowy SRT. Sprawdź wybrane audio.
+  Filtr ciszy nie jest detektorem mowy ani muzyki.
+- **Brak czasów słów / niepewne granice:** wynik ma ostrzeżenie. Nie dorabiamy
+  czasów słów ani nie dopasowujemy istniejących napisów w tej fazie.
+- **Długa ekstrakcja w ASR:** limit 3600 s i wymagane około 115 MB PCM/h na dysku
+  tymczasowym. Niski stan dysku jest wykrywany przed ekstrakcją. Dotychczasowy
+  przycisk ręcznego WAV pozostaje przy limicie 60 s.

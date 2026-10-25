@@ -153,3 +153,82 @@ def test_real_video_drop(qtbot, view, media_files):
     wait_idle(qtbot, view)
     assert view.video_path == media_files["multi"].resolve()
     assert view.audio_combo.count() == 3
+
+
+def test_transcribe_blocked_without_native_backend(qtbot, view, media_files, monkeypatch):
+    from ai_subtitle_studio.gui import main_window
+
+    monkeypatch.setattr(main_window, "readiness", lambda _: "Brak lokalnego modelu MLX")
+    view.load_video(media_files["multi"])
+    wait_idle(qtbot, view)
+    view.audio_combo.setCurrentIndex(1)
+    assert not view.transcribe_button.isEnabled()
+    assert "Brak lokalnego modelu" in view.speech_status.text()
+
+
+@pytest.mark.parametrize("cancelled", [False, True])
+def test_gui_transcription_wiring_and_responsiveness(
+    qtbot, view, media_files, model_dir, tmp_path, monkeypatch, cancelled
+):
+    from threading import Event
+
+    from PySide6.QtCore import QTimer
+
+    from ai_subtitle_studio.domain.errors import OperationCancelled
+    from ai_subtitle_studio.domain.models import TranscriptSegment, WordTiming
+    from ai_subtitle_studio.gui import main_window
+    from ai_subtitle_studio.speech.base import SpeechResult
+
+    started = Event()
+    closed = Event()
+
+    class TestProvider:
+        model_id = "test-only-provider"
+
+        def transcribe(self, wav, *, language, cancel):
+            started.set()
+            if cancel.wait(2 if cancelled else 0.2):
+                raise OperationCancelled()
+            return SpeechResult(
+                language="pl",
+                segments=[
+                    TranscriptSegment(
+                        id="test",
+                        text="Zażółć",
+                        language="pl",
+                        start_ms=100,
+                        end_ms=800,
+                        words=[WordTiming(text="Zażółć", start_ms=100, end_ms=800, confidence=0.9)],
+                    )
+                ],
+            )
+
+        def close(self):
+            closed.set()
+
+    monkeypatch.setattr(main_window, "readiness", lambda _: None)
+    view.provider_factory = lambda directory: TestProvider()
+    view.model_path.setText(str(model_dir))
+    view.load_video(media_files["multi"])
+    wait_idle(qtbot, view)
+    view.audio_combo.setCurrentIndex(1)
+    view.language_combo.setCurrentIndex(1)
+    output = tmp_path / "transcript.srt"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **kw: (str(output), ""))
+    ticks = []
+    timer = QTimer(view)
+    timer.setInterval(10)
+    timer.timeout.connect(lambda: ticks.append(True))
+    timer.start()
+    qtbot.mouseClick(view.transcribe_button, Qt.MouseButton.LeftButton)
+    qtbot.waitUntil(started.is_set, timeout=5000)
+    qtbot.waitUntil(lambda: len(ticks) > 2, timeout=1000)
+    assert view.cancel_button.isEnabled()
+    assert not view.video_button.isEnabled()
+    if cancelled:
+        qtbot.mouseClick(view.cancel_button, Qt.MouseButton.LeftButton)
+    wait_idle(qtbot, view)
+    timer.stop()
+    assert closed.is_set()
+    assert output.exists() is not cancelled
+    assert "anulowana" in view.status.text() if cancelled else "Zapisano" in view.status.text()

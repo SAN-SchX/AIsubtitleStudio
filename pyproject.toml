@@ -4,14 +4,21 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-subtitle-studio"
-version = "0.1.0"
-description = "Lokalne narzędzia do plików wideo i napisów — fazy 0–1"
+version = "0.2.0"
+description = "Lokalne narzędzia do plików wideo i napisów — fazy 0–2"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "PySide6==6.10.1",
   "pysubs2==1.8.0",
   "pydantic==2.12.5",
+]
+
+[project.optional-dependencies]
+speech = [
+  "mlx-whisper==0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "mlx==0.32.4; sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "huggingface-hub==0.36.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 
 [project.scripts]

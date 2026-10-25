@@ -6,6 +6,7 @@ import platform
 import sys
 from dataclasses import asdict, dataclass
 from http.client import HTTPConnection, HTTPException
+from pathlib import Path
 
 from ai_subtitle_studio.config import DEFAULT_SETTINGS, Settings
 from ai_subtitle_studio.domain.errors import StudioError
@@ -36,7 +37,13 @@ def ollama_models(timeout_s: float = 1.0) -> set[str]:
         connection.close()
 
 
-def diagnose(settings: Settings = DEFAULT_SETTINGS, *, check_ollama: bool = True) -> list[Check]:
+def diagnose(
+    settings: Settings = DEFAULT_SETTINGS,
+    *,
+    check_ollama: bool = True,
+    check_speech: bool = False,
+    model_dir: Path | None = None,
+) -> list[Check]:
     checks = [
         Check("Python 3.12", sys.version_info[:2] == (3, 12), True, platform.python_version()),
         Check(
@@ -83,6 +90,22 @@ def diagnose(settings: Settings = DEFAULT_SETTINGS, *, check_ollama: bool = True
             )
     else:
         checks.append(Check("Ollama", False, False, "Pominięto sprawdzanie usługi"))
+    from ai_subtitle_studio.speech.models import backend_problem, preset_path, readiness
+
+    problem = readiness(model_dir or preset_path("speed")) if check_speech else backend_problem()
+    checks.append(
+        Check(
+            "MLX Whisper",
+            problem is None,
+            check_speech,
+            problem
+            or (
+                "Backend i lokalny model dostępne"
+                if check_speech
+                else "Backend dostępny; model: doctor --check-speech"
+            ),
+        )
+    )
     return checks
 
 

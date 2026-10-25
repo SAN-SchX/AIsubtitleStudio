@@ -1,4 +1,4 @@
-"""Working media/subtitle import and copy export; AI modes are explicitly planned."""
+"""Media/subtitle tools and local MLX transcription; later AI modes remain planned."""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -22,16 +22,22 @@ from PySide6.QtWidgets import (
 )
 
 from ai_subtitle_studio.config import LANGUAGES, SUBTITLE_EXTENSIONS, VIDEO_EXTENSIONS
-from ai_subtitle_studio.domain.models import JobConfig, MediaInfo
+from ai_subtitle_studio.domain.models import JobConfig, JobResult, MediaInfo
+from ai_subtitle_studio.files import sidecar_path
 from ai_subtitle_studio.gui.workers import OperationWorker
+from ai_subtitle_studio.jobs.transcribe import transcribe_video
 from ai_subtitle_studio.media.extract import extract_audio
 from ai_subtitle_studio.media.probe import probe_media
+from ai_subtitle_studio.speech.base import StageProgress
+from ai_subtitle_studio.speech.mlx_whisper import MlxSpeechProvider
+from ai_subtitle_studio.speech.models import preset_path, readiness
 from ai_subtitle_studio.subtitles.io import SubtitleDocument, export_subtitles, load_subtitles
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, *, provider_factory=MlxSpeechProvider):
         super().__init__()
+        self.provider_factory = provider_factory
         self.setWindowTitle("AI Subtitle Studio — media i napisy")
         self.resize(980, 720)
         self.setAcceptDrops(True)
@@ -44,7 +50,10 @@ class MainWindow(QMainWindow):
         root = QWidget()
         self.setCentralWidget(root)
         layout = QVBoxLayout(root)
-        intro = QLabel("Faza 1 · lokalne pliki · bez pobierania modeli. Upuść wideo lub SRT/ASS.")
+        intro = QLabel(
+            "Media i lokalna transkrypcja MLX. Upuść wideo lub SRT/ASS. "
+            "Modele nie są pobierane automatycznie."
+        )
         intro.setWordWrap(True)
         layout.addWidget(intro)
         files = QHBoxLayout()
@@ -82,6 +91,24 @@ class MainWindow(QMainWindow):
         self.subtitle_field = QLineEdit()
         self.subtitle_field.setReadOnly(True)
         form.addRow("Napisy:", self.subtitle_field)
+        self.preset_combo = QComboBox()
+        self.preset_combo.addItem("Szybki / mniej pamięci (Whisper small)", "speed")
+        self.preset_combo.addItem("Dokładny (Whisper large-v3-turbo)", "accurate")
+        form.addRow("Wariant ASR:", self.preset_combo)
+        self.model_path = QLineEdit(str(preset_path("speed")))
+        self.model_path.setAccessibleName("Katalog lokalnego modelu MLX")
+        self.model_button = QPushButton("Wybierz katalog modelu…")
+        self.model_button.clicked.connect(self.choose_model)
+        model_row = QHBoxLayout()
+        model_row.addWidget(self.model_path)
+        model_row.addWidget(self.model_button)
+        form.addRow("Model MLX:", model_row)
+        self.speech_status = QLabel()
+        self.speech_status.setTextFormat(Qt.TextFormat.PlainText)
+        self.speech_status.setWordWrap(True)
+        form.addRow("Dostępność ASR:", self.speech_status)
+        self.preset_combo.currentIndexChanged.connect(self._preset_changed)
+        self.model_path.textChanged.connect(self._update_controls)
         layout.addLayout(form)
         actions = QHBoxLayout()
         self.extract_button = QPushButton("Zapisz wybraną ścieżkę jako WAV…")
@@ -97,9 +124,12 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setAccessibleName("Podgląd zaimportowanych napisów; bez edycji")
         layout.addWidget(self.table)
+        self.transcribe_button = QPushButton("Transkrybuj do nowego SRT…")
+        self.transcribe_button.clicked.connect(self.choose_transcribe)
+        layout.addWidget(self.transcribe_button)
         planned = QHBoxLayout()
         self.planned_buttons = []
-        for title in ("Synchronizuj", "Transkrybuj", "Transkrybuj i tłumacz", "Tłumacz napisy"):
+        for title in ("Synchronizuj", "Transkrybuj i tłumacz", "Tłumacz napisy"):
             button = QPushButton(f"{title} — Planowane")
             button.setEnabled(False)
             button.setToolTip("Funkcja kolejnych faz; nie jest zaimplementowana.")
@@ -129,21 +159,36 @@ class MainWindow(QMainWindow):
             self.audio_combo,
             self.language_combo,
             self.encoding_combo,
+            self.model_path,
+            self.model_button,
+            self.preset_combo,
         ):
             widget.setEnabled(not busy)
         self.extract_button.setEnabled(
             not busy and self.video_path is not None and self.audio_combo.currentData() is not None
         )
+        problem = readiness(Path(self.model_path.text()))
+        self.speech_status.setText(problem or "Lokalny model gotowy. Przetwarzanie bez pobierania.")
+        self.transcribe_button.setEnabled(
+            not busy
+            and problem is None
+            and self.video_path is not None
+            and self.audio_combo.currentData() is not None
+        )
         self.export_button.setEnabled(not busy and self.document is not None)
         self.cancel_button.setEnabled(busy and self._cancelable)
         self.progress.setVisible(busy)
 
-    def _start(self, task, success, message: str, *, cancelable: bool = False) -> None:
+    def _start(
+        self, task, success, message: str, *, cancelable: bool = False, with_progress: bool = False
+    ) -> None:
         if self.worker is not None:
             return
         self._success = success
         self._cancelable = cancelable
-        self.worker = OperationWorker(task, self)
+        self.progress.setRange(0, 0)
+        self.worker = OperationWorker(task, self, with_progress=with_progress)
+        self.worker.progress.connect(self._show_progress)
         self.worker.succeeded.connect(self._succeeded)
         self.worker.failed.connect(lambda text: self.status.setText(f"Błąd: {text}"))
         self.worker.cancelled.connect(lambda: self.status.setText("Operacja anulowana."))
@@ -280,6 +325,60 @@ class MainWindow(QMainWindow):
                 "Ekstrakcja wybranej ścieżki audio…",
                 cancelable=True,
             )
+
+    def _show_progress(self, update: StageProgress):
+        if update.total:
+            self.progress.setRange(0, update.total)
+            self.progress.setValue(update.completed)
+            self.status.setText(f"{update.stage}: {update.completed}/{update.total} fragmentów")
+        else:
+            self.progress.setRange(0, 0)
+            self.status.setText(f"{update.stage}…")
+
+    def _preset_changed(self):
+        self.model_path.setText(str(preset_path(self.preset_combo.currentData())))
+
+    def choose_model(self):
+        directory = QFileDialog.getExistingDirectory(self, "Wybierz lokalny model MLX")
+        if directory:
+            self.model_path.setText(directory)
+
+    def choose_transcribe(self):
+        if self.video_path is None or self.audio_combo.currentData() is None:
+            return
+        directory = Path(self.model_path.text())
+        problem = readiness(directory)
+        if problem:
+            self.status.setText(problem)
+            return
+        selected = self.job_config()
+        config = selected.model_copy(update={"mode": "transcribe"})
+        default = (
+            sidecar_path(config.video_path, config.source_language)
+            if config.source_language
+            else config.video_path.with_suffix(".transkrypcja.srt")
+        )
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Zapisz transkrypcję jako nowy SRT", str(default), "Napisy (*.srt)"
+        )
+        if not path:
+            return
+
+        def task(cancel, progress):
+            return transcribe_video(
+                config,
+                Path(path),
+                self.provider_factory(directory),
+                cancel=cancel,
+                progress=progress,
+            )
+
+        def finished(result: JobResult):
+            self.status.setText(result.summary)
+
+        self._start(
+            task, finished, "Przygotowanie transkrypcji…", cancelable=True, with_progress=True
+        )
 
     @staticmethod
     def _drop_path(event) -> Path | None:

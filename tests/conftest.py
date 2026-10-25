@@ -114,3 +114,13 @@ def media_files(tmp_path_factory):
     corrupt = root / "corrupt.mkv"
     corrupt.write_bytes(b"not a video\x00")
     return {"multi": multi, "silent": silent, "delayed": delayed, "corrupt": corrupt}
+
+
+@pytest.fixture
+def model_dir(tmp_path):
+    """Structural fixture only. These bytes are NEVER passed to a real MLX model."""
+    root = tmp_path / "local-model"
+    root.mkdir()
+    (root / "config.json").write_text('{"n_mels":80,"n_vocab":51865}')
+    (root / "weights.safetensors").write_bytes(b"test-only-not-real-weights")
+    return root

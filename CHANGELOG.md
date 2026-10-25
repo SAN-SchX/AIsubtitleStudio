@@ -1,5 +1,16 @@
 # Historia zmian
 
+## 0.2.0 — 2026-10-25
+
+- Wysłano commit faz 0–1 na GitHub (main).
+- Dodano opcjonalny adapter MLX z procesem osobnym dla zadania, kontrolą wersji,
+  lokalnym modelem, timeoutem, anulowaniem i zwalnianiem procesu.
+- Dodano zgodę na download, okna audio, offsety, deduplikację i segmentację SRT.
+- Dodano przycisk transkrypcji, modele/presety, sygnały postępu i polecenia CLI.
+- Dodano testy providera, transportu, pipeline i GUI oraz opt-in testy macOS.
+- Rzeczywisty Whisper PL/EN/JA, modele Hugging Face i M5 **NOT VERIFIED**.
+- Synchronizacja i tłumaczenia pozostają poza zakresem etapu.
+
 ## 0.1.0 — 2026-10-25
 
 ### Faza 0

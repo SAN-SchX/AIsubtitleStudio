@@ -59,3 +59,28 @@ and local file/pipe protocols; chunked long-running ASR is outside phase 1.
 QApplication and windows must outlive queued events. Qt integration fixtures hold
 a strong reference through event processing and explicit close before destruction.
 Production entry point keeps the window alive for the application's event loop.
+
+## ADR 007 — Phase 2 local MLX and bounded audio
+
+Accepted: optional macOS arm64 `speech` extra, pinned mlx-whisper 0.4.3 / MLX
+0.32.4 / huggingface-hub 0.36.0. MLX is not installed on Linux. Package source
+API inspected in the SHA256-verified PyPI wheel; native compatibility remains
+unverified. Fixed model repository presets are not passed to inference. A user
+must choose existing weights, or explicitly invoke download-model with consent.
+Do not silently fetch missing weights; reject unsupported model file layouts.
+
+A per-job child process holds one model and handles bounded chunks. Parent polls
+atomic JSON responses with cancellation/deadline; terminate/kill/reap on failure.
+No model library imports on the GUI thread. Child uses HF_HUB_OFFLINE and disables
+HF telemetry; normal inference receives only an existing absolute local path.
+
+PCM extraction streams to a private temporary disk file, then reads at most 30s
+per chunk. Disjoint 25s ownership cores have 1s context on each side. Word midpoint
+ownership plus temporal/text duplicate checks join boundaries. Missing word times
+use observed segment endpoints and a warning, never manufactured word timings.
+Digital silence gating is intentionally not described as neural VAD. Silero
+integration and genuine speech/music quality checks remain unverified/unimplemented.
+
+SRT publication reuses atomic no-replace writing and a final cancellation check.
+Qt progress is delivered by signals, with counts only for completed chunks.
+ASR runs without Ollama. Native PL/EN/JA acceptance is pending, not waived by mocks.

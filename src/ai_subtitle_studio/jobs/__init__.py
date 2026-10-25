@@ -1,0 +1,1 @@
+"""Sequential, cancellable local jobs."""

@@ -1,6 +1,49 @@
-# Pliki po fazach 0–1
+# Wykaz plików projektu
 
-Zmieniono istniejący `README.md`; pozostałe pliki dodano. Pliki specyfikacji `AGENTS.md`, `ROADMAP.md` i `PROMPTS_BY_PHASE.md` pochodzą z załączników; `TASKS.md` uzupełniono wynikami.
+Fazy 0–1: commit `d6bd6ef` (57 plików), wysłany na GitHub `main`.
+
+Zmiany implementacji fazy 2 (względem tego commitu):
+
+- `CHANGELOG.md`
+- `README.md`
+- `TASKS.md`
+- `docs/architecture.md`
+- `docs/decisions.md`
+- `docs/install_macos.md`
+- `docs/phase2.md`
+- `docs/troubleshooting.md`
+- `docs/validation.md`
+- `pyproject.toml`
+- `src/ai_subtitle_studio/__init__.py`
+- `src/ai_subtitle_studio/cli.py`
+- `src/ai_subtitle_studio/doctor.py`
+- `src/ai_subtitle_studio/files.py`
+- `src/ai_subtitle_studio/gui/main_window.py`
+- `src/ai_subtitle_studio/gui/workers.py`
+- `src/ai_subtitle_studio/jobs/__init__.py`
+- `src/ai_subtitle_studio/jobs/transcribe.py`
+- `src/ai_subtitle_studio/speech/__init__.py`
+- `src/ai_subtitle_studio/speech/base.py`
+- `src/ai_subtitle_studio/speech/chunks.py`
+- `src/ai_subtitle_studio/speech/cues.py`
+- `src/ai_subtitle_studio/speech/mlx_whisper.py`
+- `src/ai_subtitle_studio/speech/mlx_worker.py`
+- `src/ai_subtitle_studio/speech/models.py`
+- `src/ai_subtitle_studio/speech/stitch.py`
+- `src/ai_subtitle_studio/subtitles/io.py`
+- `tests/conftest.py`
+- `tests/integration/test_gui.py`
+- `tests/integration/test_mlx_native.py`
+- `tests/integration/test_transcription.py`
+- `tests/unit/test_chunks_stitch.py`
+- `tests/unit/test_speech_models.py`
+- `tests/unit/test_speech_process.py`
+- `tests/unit/test_speech_worker.py`
+- `tests/unit/test_subtitles.py`
+- `tests/unit/test_transcribe_cli.py`
+- `uv.lock`
+
+Pełny aktualny wykaz plików źródłowych, testów, konfiguracji i dokumentacji:
 
 - `.gitignore`
 - `AGENTS.md`
@@ -13,6 +56,7 @@ Zmieniono istniejący `README.md`; pozostałe pliki dodano. Pliki specyfikacji `
 - `docs/decisions.md`
 - `docs/files.md`
 - `docs/install_macos.md`
+- `docs/phase2.md`
 - `docs/troubleshooting.md`
 - `docs/validation.md`
 - `pyproject.toml`
@@ -31,10 +75,20 @@ Zmieniono istniejący `README.md`; pozostałe pliki dodano. Pliki specyfikacji `
 - `src/ai_subtitle_studio/gui/app.py`
 - `src/ai_subtitle_studio/gui/main_window.py`
 - `src/ai_subtitle_studio/gui/workers.py`
+- `src/ai_subtitle_studio/jobs/__init__.py`
+- `src/ai_subtitle_studio/jobs/transcribe.py`
 - `src/ai_subtitle_studio/media/__init__.py`
 - `src/ai_subtitle_studio/media/extract.py`
 - `src/ai_subtitle_studio/media/probe.py`
 - `src/ai_subtitle_studio/media/process.py`
+- `src/ai_subtitle_studio/speech/__init__.py`
+- `src/ai_subtitle_studio/speech/base.py`
+- `src/ai_subtitle_studio/speech/chunks.py`
+- `src/ai_subtitle_studio/speech/cues.py`
+- `src/ai_subtitle_studio/speech/mlx_whisper.py`
+- `src/ai_subtitle_studio/speech/mlx_worker.py`
+- `src/ai_subtitle_studio/speech/models.py`
+- `src/ai_subtitle_studio/speech/stitch.py`
 - `src/ai_subtitle_studio/subtitles/__init__.py`
 - `src/ai_subtitle_studio/subtitles/io.py`
 - `tests/conftest.py`
@@ -51,11 +105,18 @@ Zmieniono istniejący `README.md`; pozostałe pliki dodano. Pliki specyfikacji `
 - `tests/golden/timings.json`
 - `tests/integration/test_gui.py`
 - `tests/integration/test_media.py`
+- `tests/integration/test_mlx_native.py`
+- `tests/integration/test_transcription.py`
+- `tests/unit/test_chunks_stitch.py`
 - `tests/unit/test_doctor.py`
 - `tests/unit/test_files.py`
 - `tests/unit/test_fixtures.py`
 - `tests/unit/test_models.py`
 - `tests/unit/test_probe.py`
 - `tests/unit/test_process.py`
+- `tests/unit/test_speech_models.py`
+- `tests/unit/test_speech_process.py`
+- `tests/unit/test_speech_worker.py`
 - `tests/unit/test_subtitles.py`
+- `tests/unit/test_transcribe_cli.py`
 - `uv.lock`

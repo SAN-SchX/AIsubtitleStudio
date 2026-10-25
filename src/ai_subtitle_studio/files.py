@@ -6,8 +6,9 @@ import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from threading import Event
 
-from ai_subtitle_studio.domain.errors import OutputConflictError, StudioError
+from ai_subtitle_studio.domain.errors import OperationCancelled, OutputConflictError, StudioError
 
 
 def output_target(path: Path, sources: tuple[Path, ...] = ()) -> Path:
@@ -23,7 +24,9 @@ def output_target(path: Path, sources: tuple[Path, ...] = ()) -> Path:
 
 
 @contextmanager
-def atomic_output(path: Path, sources: tuple[Path, ...] = ()) -> Iterator[Path]:
+def atomic_output(
+    path: Path, sources: tuple[Path, ...] = (), *, cancel: Event | None = None
+) -> Iterator[Path]:
     """Yield a private temp file; publish only on success, never replace a directory entry."""
     target = output_target(path, sources)
     descriptor, name = tempfile.mkstemp(prefix=".aisub-", suffix=target.suffix, dir=target.parent)
@@ -33,6 +36,8 @@ def atomic_output(path: Path, sources: tuple[Path, ...] = ()) -> Iterator[Path]:
         yield temporary
         with temporary.open("rb") as file:
             os.fsync(file.fileno())
+        if cancel is not None and cancel.is_set():
+            raise OperationCancelled("Zapis anulowany.")
         try:
             os.link(temporary, target)
         except FileExistsError as exc:
