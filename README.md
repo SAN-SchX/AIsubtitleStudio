@@ -1,0 +1,2 @@
+# AIsubtitleStudio
+small project
