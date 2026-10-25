@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling==1.28.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-subtitle-studio"
+version = "0.1.0"
+description = "Lokalne narzędzia do plików wideo i napisów — fazy 0–1"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "PySide6==6.10.1",
+  "pysubs2==1.8.0",
+  "pydantic==2.12.5",
+]
+
+[project.scripts]
+ai-subtitle-studio = "ai_subtitle_studio.cli:main"
+
+[dependency-groups]
+dev = ["pytest==9.0.2", "pytest-qt==4.5.0", "ruff==0.14.10"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyside6"
+addopts = "-ra"
+markers = ["integration: requires local FFmpeg and FFprobe"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
